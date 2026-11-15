@@ -3,6 +3,8 @@ import numpy as np
 from .diversity import indices
 from .rarefaction import valid_counts,expected_species
 
+def bootstrap_key(survey_id,reference):return str(survey_id)+'/'+reference
+
 def bootstrap_intervals(counts,m,repetitions,seed,key):
  a=valid_counts(counts);N=int(a.sum())
  if N==0:raise ValueError('空群落不可bootstrap')

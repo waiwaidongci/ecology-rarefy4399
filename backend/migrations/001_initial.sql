@@ -3,3 +3,9 @@
 -- Natural keys: survey.name, (survey_id,reference), (transect_id,species).
 -- CHECK count>=0 plus unique species per transect. Plan schema migrations
 -- explicitly before changing deployed models.
+--
+-- gb-0014 adds transect_computations: one row per (survey, transect input,
+-- m, bootstrap, seed, algorithm). diversity_runs.computations maps each
+-- selected transect id to its shared computation id. Finite schema-only
+-- addition; no data backfill: existing runs keep their stored results and
+-- join sharing when equal inputs are next requested.

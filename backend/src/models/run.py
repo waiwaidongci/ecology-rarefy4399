@@ -2,6 +2,11 @@ from datetime import datetime,timezone
 from sqlalchemy.orm import Mapped,mapped_column
 from sqlalchemy import String,JSON,ForeignKey,DateTime
 from src.config.database import Base
+
+
+def utcnow():return datetime.now(timezone.utc)
+
+
 class DiversityRun(Base):
  __tablename__='diversity_runs'
  id:Mapped[int]=mapped_column(primary_key=True)
@@ -10,6 +15,9 @@ class DiversityRun(Base):
  status:Mapped[str]=mapped_column(String(20),default='queued')
  config:Mapped[dict]=mapped_column(JSON)
  result:Mapped[dict]=mapped_column(JSON,default=dict)
+ # 逐样线共享计算 id：{"transect_id": computation_id}；空样线不入表。
+ computations:Mapped[dict]=mapped_column(JSON,default=dict)
  error:Mapped[str|None]=mapped_column(String(1000),nullable=True)
+ stopped_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True)
  creator_id:Mapped[int]=mapped_column(ForeignKey('users.id'))
- created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=lambda:datetime.now(timezone.utc))
+ created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)

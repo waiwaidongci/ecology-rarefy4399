@@ -47,7 +47,7 @@ services:
   worker:
     build: ./backend
     container_name: ${COMPOSE_PROJECT_NAME:-ecology-rarefy}-worker
-    command: ["celery", "-A", "src.worker.app", "worker", "--loglevel=info", "--concurrency=1", "--hostname=worker@%h"]
+    command: ["celery", "-A", "src.worker.app", "worker", "--beat", "--schedule", "/tmp/celerybeat-schedule", "--loglevel=info", "--concurrency=1", "--hostname=worker@%h"]
     environment: *backend-env
     volumes: ["artifacts:/artifacts"]
     depends_on:

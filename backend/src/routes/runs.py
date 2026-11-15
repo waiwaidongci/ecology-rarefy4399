@@ -12,3 +12,5 @@ def index(db:Session=Depends(get_db),user=Depends(current_user)):return runs.lis
 def detail(id:int,db:Session=Depends(get_db),user=Depends(current_user)):return row(runs.get_run(db,id))
 @router.post('/runs',status_code=201)
 def create(data:DiversityInput,db:Session=Depends(get_db),user=Depends(writers)):return runs.create_run(db,data,user)
+@router.post('/runs/{id}/stop')
+def stop(id:int,db:Session=Depends(get_db),user=Depends(writers)):return runs.stop_run(db,id,user)

@@ -34,7 +34,7 @@ docker compose exec -T backend python -m scripts.seed_demo
 
 ## 实体与页面
 
-五个核心实体Survey、Transect、SpeciesCount、DiversityRun、ConservationNote贯穿表/model/schema/service/route/API/store/UI。六页为研究首页、调查与样线、共同量配置、多样性结果、观察建议、田野留痕。RarefactionCurve、DiversitySummary、RunTable跨页复用，同时有共享Table/Badge/Notice/Empty。
+五个核心实体Survey、Transect、SpeciesCount、DiversityRun、ConservationNote贯穿表/model/schema/service/route/API/store/UI；TransectComputation作为逐样线共享计算单元支撑跨研究的复用与来源标注。六页为研究首页、调查与样线、共同量配置、多样性结果、观察建议、田野留痕。RarefactionCurve、DiversitySummary、RunTable跨页复用，同时有共享Table/Badge/Notice/Empty。
 
 调查期内样线reference唯一，样线内species唯一并有数据库非负CHECK；API对重复物种行明确422，要求上游先汇总，不静默覆盖。S01—S24为允许物种；未知编码、负数、非整数计数拒绝，未提供物种按零计算。单种每行上限100000、样线总N上限2400000；研究最多选择同一期30条样线。支持新调查期和JSON计数录入，不提供CSV解析器。
 
@@ -51,6 +51,12 @@ docker compose exec -T backend python -m scripts.seed_demo
 输入指纹按样线reference稳定排序，包含调查期id/name/date/filename、样线id/期次/reference/name/habitat、全部24种计数（缺列规范为零）、共同m/重复数/seed/选择样线集合、算法版本；选择ID顺序和输入行序变化不改指纹，计数/元数据/seed改变会改。结果保存全部参数、原N/S、资格、期望曲线、三组条件区间、低计数1–2个体物种和指纹，worker写共享JSON并落库，可复算。
 
 失败态包括未知物种、负/非整数/非有限计数、重复物种、跨调查期、重复样线、共同m超非空最小N、所有样线为空、非法bootstrap和seed。观察差异不证明保护动作有因果效果，田野协议与漏检需要另行复核。
+
+## 共享计算与停止
+
+多组研究选择相同或部分重叠的样线时，按**单条样线**登记共享计算行（`transect_computations`），键只由该样线的规范化输入、m、bootstrap、seed 与算法版本决定；`diversity_runs.computations` 记录每个选中样线到计算行的映射。登记研究时即按样线去重：已成功的行直接复用，排队/计算中的行等待同一份执行，只有未算过的样线才入队。空样线不建计算行，仍按空记录单列。共享结果按样线自身的 N 网格保存曲线节点，其他研究网格中未缓存的节点用同一稀释公式补算，因此不同共同范围的研究也能复用。复用结果与独立重算逐项相同（仅多出 `source`/`provenance` 来源标注），研究级指纹仍按原定义计算。
+
+并发领取使用条件更新：只有把 queued 或租约到期的行改成自己 running 的那一次更新成功，其余任务静默返回；落库时再校验 `owner_token`，被接管后旧执行者晚到的结果直接丢弃。worker 内嵌 beat 每30秒运行 `ecology.reap_expired`，把租约过期（执行者失联）的计算交还队列并重新投递，依赖它们的活跃研究也一并重新组装。`POST /runs/{id}/stop` 先落 cancelled 状态，worker 之后对该研究的写入全部作废、不发布结果；被其他活跃研究依赖的计算继续有效，仅独享的计算标记停止并清空结果，其他研究不受影响。每条结果附 `source.computation_id/key/origin_run_id/reused`，页面可查看各样线取自哪份共享计算、由哪项研究首次计算。
 
 ## 工程与开发
 
@@ -83,7 +89,7 @@ npm run dev
 
 目录：backend/src/{routes,controllers,services,models,schemas,middlewares,utils,constants,config}；backend/scripts/seed_demo.py；backend/migrations/；frontend/src/{api,stores,types,components/common,hooks,pages,router,utils,constants}。metadata首次建表，migrations记录结构，未配置生产增量迁移。seed按自然键插入，已有数据/用户修改不覆盖，基准运行仅缺失时计算。请求ID/全局错误两个中间件；AuditLog记录登录、录入、研究、建议复核；CSV对公式前缀转义。
 
-共享枚举位置：backend/src/constants/enums.py的Role/RunStatus/NoteStatus/TransectStatus；frontend/src/constants/enums.ts对应角色/运行/建议/资格标签；使用于鉴权、服务/schema与Badge/Layout/页面。75个职责源文件，不计__init__及配置。全部测试脚本、真实截图、CSV、日志和报告仅位于批次根test-artifacts/gb-0014；TESTING.md列真实结果与已知差异。
+共享枚举位置：backend/src/constants/enums.py的Role/RunStatus/NoteStatus/TransectStatus；frontend/src/constants/enums.ts对应角色/运行/建议/资格标签；使用于鉴权、服务/schema与Badge/Layout/页面。77个职责源文件，不计__init__及配置（新增 computation 模型与 computations 服务）。全部测试脚本、真实截图、CSV、日志和报告仅位于批次根test-artifacts/gb-0014；TESTING.md列真实结果与已知差异。
 
 ## 范围与License
 
